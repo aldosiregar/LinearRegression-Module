@@ -40,14 +40,9 @@ class LinearRegression:
         error:
         intercept atau error dari model awal
         """
-
-        verificator = lambda variable : variable \
-                if isinstance(variable, np.ndarray) \
-                else np.array(variable)
-
         try:
-            self.x_train = verificator(x_train)
-            self.y_train = verificator(y_train)
+            self.x_train = self.variableVerificator(x_train)
+            self.y_train = self.variableVerificator(y_train)
         except TypeError as e:
             print("tipe data untuk x_train atau y_train salah")
             print(e)
@@ -56,6 +51,13 @@ class LinearRegression:
         self.weight = weight
         self.error = error
         self.cost_function = None
+
+    def variableVerificator(self, variable):
+        """verifikasi variable iterable atau sudah menjadi numpy"""
+        if(isinstance(variable, np.ndarray)):
+            return variable
+        else:
+            return np.array(variable)
 
     def fit(
             self, 
@@ -81,8 +83,22 @@ class LinearRegression:
             case "Huber Loss":
                 pass
             case _:
-                print("tidak ada cost function dengan nama tersebut")
-    
+                print("tidak ada loss function dengan nama tersebut")
+
+        for _ in range(iter):
+            self.loss_function.update(x_train=self.x_train, y_train=self.y_train)
+
+        self.weight, self.error = self.loss_function.returnParameter()
+
+    def predict(self, x_test=np.ndarray | list | tuple):
+        try:
+            x_test = self.variableVerificator(x_test)
+        except TypeError as e:
+            print("tipe data bukan tupple, list, atau np.ndarray")
+            print(e)
+        
+        return x_test * self.weight + self.error
+
     def __str__(self):
         return str(LinearRegression.__annotations__)
 
