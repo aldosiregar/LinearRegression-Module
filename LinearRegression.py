@@ -15,7 +15,7 @@ class LinearRegression:
             self, 
             x_train = np.ndarray | list | tuple, 
             y_train = np.ndarray | list | tuple, 
-            alpha = 0.001,
+            alpha = 0.1,
             weight = 1.0,
             error = 1.0
         ) -> None:
@@ -57,12 +57,12 @@ class LinearRegression:
         if(isinstance(variable, np.ndarray)):
             return variable
         else:
-            return np.array(variable)
+            return np.array(variable).ravel()
 
     def fit(
             self, 
             loss_function_type = "MAE",
-            iter=300
+            iter=500
         ) -> None:
         """
         fitting data ke model regresi linear
@@ -86,21 +86,22 @@ class LinearRegression:
                 print("tidak ada loss function dengan nama tersebut")
 
         for _ in range(iter):
-            self.loss_function.update(x_train=self.x_train, y_train=self.y_train)
+            self.loss_function.update(
+                x_train=self.x_train, y_train=self.y_train
+            )
 
         self.weight, self.error = self.loss_function.returnParameter()
 
     def predict(self, x_test=np.ndarray | list | tuple):
         try:
-            x_test = self.variableVerificator(x_test)
+            x_test = self.variableVerificator(x_test).ravel()
         except TypeError as e:
             print("tipe data bukan tupple, list, atau np.ndarray")
             print(e)
-        
         return x_test * self.weight + self.error
 
     def __str__(self):
-        return str(LinearRegression.__annotations__)
+        return f"weight : {self.weight}, error : {self.error}"
 
 class LossFunction:
     """template untuk loss function"""
@@ -136,7 +137,7 @@ class LossFunction:
 
     def updateParameter(self,
         parameter=float,
-        loss_derivative_result=float) -> tuple:
+        loss_derivative_result=float) -> float:
         """fungsi template untuk update parameter model"""
         return parameter - self.alpha * loss_derivative_result
 
@@ -173,8 +174,8 @@ class MAE(LossFunction):
         y_train=np.ndarray) -> np.ndarray:
         """turunan dari loss function MAE respectively ke weight"""
         x_size = x_train.size
-        return (-1 * x_train * 1/x_size) * np.sum(
-            self.actualToPredictionDistance(
+        return (-1/x_size) * np.sum(
+            x_train * self.actualToPredictionDistance(
                 x_train=x_train, y_train=y_train
             ) / self.absOfActualToPrediction(
                 x_train=x_train,y_train=y_train
@@ -198,10 +199,10 @@ class MAE(LossFunction):
         x_train=np.ndarray,
         y_train=np.ndarray) -> None:
         """update parameter yang ada pada model"""
-        self.weight -= self.updateParameter(
-            self, self.derivativeToWeight(x_train=x_train,y_train=y_train)
+        self.weight = self.updateParameter(
+            self.weight, self.derivativeToWeight(x_train=x_train,y_train=y_train)
         )
-        self.error -= self.updateParameter(
+        self.error = self.updateParameter(
             self.error, self.derivativeToError(x_train=x_train,y_train=y_train)
         )
 
@@ -228,8 +229,8 @@ class MSE(LossFunction):
         y_train=np.ndarray) -> np.ndarray:
         """turunan dari loss function MSE respectively ke weight"""
         x_size = x_train.size
-        return (-2 * x_train / x_size) * np.sum(
-            self.actualToPredictionDistance(
+        return (-2/x_size) * np.sum(
+            x_train * self.actualToPredictionDistance(
                 x_train=x_train, y_train=y_train
             )
         )
@@ -249,10 +250,10 @@ class MSE(LossFunction):
         x_train=np.ndarray,
         y_train=np.ndarray) -> None:
         """update parameter yang ada pada model"""
-        self.weight -= self.updateParameter(
-            self, self.derivativeToWeight(x_train=x_train,y_train=y_train)
+        self.weight = self.updateParameter(
+            self.weight, self.derivativeToWeight(x_train=x_train,y_train=y_train)
         )
-        self.error -= self.updateParameter(
+        self.error = self.updateParameter(
             self.error, self.derivativeToError(x_train=x_train,y_train=y_train)
         )
 
@@ -281,8 +282,8 @@ class RMSE(LossFunction):
         y_train=np.ndarray) -> np.ndarray:
         """turunan dari loss function RMSE respectively ke weight"""
         x_size = x_train.size
-        return (-x_train/x_size) * np.sum(
-            self.actualToPredictionDistance(
+        return (-1/x_size) * np.sum(
+            x_train * self.actualToPredictionDistance(
                 x_train=x_train, y_train=y_train
             ) / self.loss(
                 x_train=x_train, y_train=y_train
@@ -306,11 +307,15 @@ class RMSE(LossFunction):
         x_train=np.ndarray,
         y_train=np.ndarray) -> None:
         """update parameter yang ada pada model"""
-        self.weight -= self.updateParameter(
-            self, self.derivativeToWeight(x_train=x_train,y_train=y_train)
+        self.weight = self.updateParameter(
+            self.weight, self.derivativeToWeight(
+                x_train=x_train,y_train=y_train
+            )
         )
-        self.error -= self.updateParameter(
-            self.error, self.derivativeToError(x_train=x_train,y_train=y_train)
+        self.error = self.updateParameter(
+            self.error, self.derivativeToError(
+                x_train=x_train,y_train=y_train
+            )
         )
 
 class RSquared(LossFunction):
@@ -325,10 +330,10 @@ class RSquared(LossFunction):
         return np.square(
             self.absOfActualToPrediction(
                 x_train=x_train, y_train=y_train
+            ) / np.square(
+                y_train - y_mean
             )
-        ) / np.square(
-            y_train - y_mean
-        )
+        ) 
 
     def derivativeToWeight(
         self,
@@ -337,8 +342,8 @@ class RSquared(LossFunction):
         """turunan dari loss function R-Squared respectively ke weight"""
         x_size = x_train.size
         y_mean = np.sum(y_train)/y_train.size
-        return (-2*x_train/x_size) * np.sum(
-            self.actualToPredictionDistance(
+        return (-2/x_size) * np.sum(
+            x_train * self.actualToPredictionDistance(
                 x_train=x_train, y_train=y_train
             ) / np.square(
                 y_train - y_mean
@@ -350,7 +355,7 @@ class RSquared(LossFunction):
         y_train=np.ndarray) -> np.ndarray:
         """turunan dari loss function R-Squared respectively ke error"""
         x_size = x_train.size
-        y_mean = y_train/y_train.size
+        y_mean = np.sum(y_train)/y_train.size
         return (-2/x_size) * np.sum(
             self.actualToPredictionDistance(
                 x_train=x_train, y_train=y_train
@@ -363,9 +368,9 @@ class RSquared(LossFunction):
         x_train=np.ndarray,
         y_train=np.ndarray) -> None:
         """update parameter yang ada pada model"""
-        self.weight -= self.updateParameter(
-            self, self.derivativeToWeight(x_train=x_train,y_train=y_train)
+        self.weight = self.updateParameter(
+            self.weight, self.derivativeToWeight(x_train=x_train,y_train=y_train)
         )
-        self.error -= self.updateParameter(
+        self.error = self.updateParameter(
             self.error, self.derivativeToError(x_train=x_train,y_train=y_train)
         )
